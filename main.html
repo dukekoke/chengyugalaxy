@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>字宙探索號・成語星際任務</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --void:#0A0E1F;
+  --panel:#131A34;
+  --panel-2:#1B2447;
+  --panel-3:#232E58;
+  --line:rgba(201,162,39,0.28);
+  --line-soft:rgba(201,162,39,0.14);
+  --gold:#C9A227;
+  --gold-bright:#EACD6B;
+  --jade:#3FA796;
+  --amber:#CE7B45;
+  --vermillion:#C1443D;
+  --violet:#8B7FD1;
+  --ink:#F2EEDC;
+  --ink-dim:#A6ACC9;
+  --ink-faint:#6B7196;
+  --font-display:"DFKai-SB","BiauKai","Kaiti TC","STKaiti","KaiTi",serif;
+  --font-body:"PingFang TC","Microsoft JhengHei","Heiti TC","Noto Sans TC",sans-serif;
+  --font-mono:"Courier New",monospace;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  background:radial-gradient(ellipse at 20% 0%, #131C3E 0%, var(--void) 55%);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  position:relative;
+  min-height:100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+#stars{position:fixed; inset:0; z-index:0; pointer-events:none;}
+#app{position:relative; z-index:1; width:100%; height:100vh; overflow:hidden;}
+
+.screen{
+  position:absolute; inset:0;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  overflow-y:auto;
+  padding:24px 16px 48px;
+  opacity:0;
+  transition:opacity .5s ease;
+}
+.screen.active{display:flex; opacity:1;}
+
+/* ---------- shared bits ---------- */
+.ink-divider{
+  width:120px; height:14px; margin:14px auto;
+  background:none;
+}
+.ink-divider svg{width:100%; height:100%; display:block;}
+
+.brushed-btn{
+  font-family:var(--font-display);
+  font-size:16px;
+  letter-spacing:2px;
+  color:var(--ink);
+  background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  border:1px solid var(--line);
+  padding:12px 28px;
+  border-radius:3px;
+  cursor:pointer;
+  position:relative;
+  transition:all .2s ease;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.brushed-btn:hover{border-color:var(--gold-bright); box-shadow:0 0 18px rgba(201,162,39,.35); transform:translateY(-1px);}
+.brushed-btn:active{transform:translateY(0);}
+.brushed-btn.primary{
+  background:linear-gradient(180deg, #E8C765, var(--gold));
+  color:#20160a;
+  border-color:var(--gold-bright);
+  font-weight:700;
+}
+.brushed-btn.primary:hover{box-shadow:0 0 24px rgba(234,205,107,.5);}
+.brushed-btn.ghost{background:transparent;}
+.brushed-btn.small{padding:8px 16px; font-size:13px;}
+.brushed-btn:disabled{opacity:.35; cursor:not-allowed; box-shadow:none; transform:none;}
+
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:4px;
+  color:var(--gold);
+  text-transform:uppercase;
+  opacity:.85;
+}
+
+/* ---------- BOOT ---------- */
+#screen-boot{justify-content:center; align-items:center; text-align:center;}
+.boot-emblem{width:150px; height:150px; margin-bottom:22px; filter:drop-shadow(0 0 20px rgba(201,162,39,.35));}
+.boot-title{
+  font-family:var(--font-display);
+  font-size:44px;
+  letter-spacing:10px;
+  color:var(--ink);
+  text-shadow:0 0 24px rgba(234,205,107,.4);
+}
+.boot-sub{
+  font-family:var(--font-mono);
+  font-size:12px;
+  letter-spacing:6px;
+  color:var(--ink-dim);
+  margin-top:10px;
+  text-transform:uppercase;
+}
+.boot-tagline{
+  margin-top:26px; color:var(--ink-dim); font-size:14px; letter-spacing:1px;
+}
+#screen-boot .brushed-btn{margin-top:38px;}
+
+/* ---------- STORY ---------- */
+#screen-story{justify-content:center; align-items:center;}
+.story-stage{
+  width:100%; max-width:640px;
+  display:flex; flex-direction:column; align-items:center;
+  min-height:520px; justify-content:center;
+}
+.mentor-portrait{width:118px; height:118px; margin-bottom:18px;}
+.story-namecard{
+  font-family:var(--font-display);
+  font-size:15px; letter-spacing:3px; color:var(--gold-bright);
+  margin-bottom:10px; min-height:20px;
+}
+.story-textbox{
+  background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:26px 30px;
+  min-height:120px;
+  width:100%;
+  font-size:16.5px;
+  line-height:1.9;
+  color:var(--ink);
+  display:flex; align-items:center;
+  text-align:center;
+  animation:fadeSlideIn .45s ease;
+  position:relative;
+}
+.story-textbox::before, .story-textbox::after{
+  content:""; position:absolute; width:16px; height:16px;
+  border:1px solid var(--gold); opacity:.6;
+}
+.story-textbox::before{top:-1px; left:-1px; border-right:none; border-bottom:none;}
+.story-textbox::after{bottom:-1px; right:-1px; border-left:none; border-top:none;}
+@keyframes fadeSlideIn{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+.story-nav{display:flex; align-items:center; gap:16px; margin-top:22px;}
+.story-progress{display:flex; gap:6px;}
+.story-dot{width:6px; height:6px; border-radius:50%; background:var(--ink-faint); transition:all .3s;}
+.story-dot.done{background:var(--gold);}
+.story-skip{
+  position:fixed; top:18px; right:20px; z-index:5;
+  font-size:12px; color:var(--ink-dim); letter-spacing:2px; cursor:pointer;
+  border:1px solid var(--line-soft); padding:6px 12px; border-radius:20px;
+}
+.story-skip:hover{color:var(--gold-bright); border-color:var(--gold);}
+
+/* ---------- HUB ---------- */
+#screen-hub{padding-top:14px;}
+.hub-topbar{
+  width:100%; max-width:900px;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 6px 18px; gap:10px; flex-wrap:wrap;
+}
+.ship-id{display:flex; flex-direction:column;}
+.ship-id .name{font-family:var(--font-display); font-size:22px; letter-spacing:4px; color:var(--ink);}
+.ship-id .sub{font-family:var(--font-mono); font-size:10px; letter-spacing:3px; color:var(--ink-faint); margin-top:2px;}
+.hub-stats{display:flex; gap:22px; align-items:center;}
+.stat{text-align:center;}
+.stat .val{font-family:var(--font-display); font-size:20px; color:var(--gold-bright);}
+.stat .lab{font-size:10px; color:var(--ink-faint); letter-spacing:2px;}
+.hub-actions{display:flex; gap:8px;}
+
+.orbit-wrap{
+  position:relative; width:100%; max-width:640px; aspect-ratio:1/1; margin:6px auto 10px;
+}
+.orbit-wrap svg{position:absolute; inset:0; width:100%; height:100%;}
+.ship-core{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:19%; height:19%;
+  display:flex; align-items:center; justify-content:center;
+  text-align:center;
+}
+.ship-core .core-inner{
+  width:100%; height:100%; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #2A3568, #10152C);
+  border:1px solid var(--line);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  box-shadow:0 0 30px rgba(201,162,39,.18), inset 0 0 20px rgba(0,0,0,.5);
+}
+.ship-core .pct{font-family:var(--font-display); font-size:clamp(16px,3.4vw,26px); color:var(--gold-bright);}
+.ship-core .lab{font-size:9px; letter-spacing:2px; color:var(--ink-faint); margin-top:2px;}
+
+.station-node{
+  position:absolute; width:19%; aspect-ratio:1/1; transform:translate(-50%,-50%);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; background:none; border:none; padding:0;
+}
+.station-node .node-ring{
+  width:100%; height:100%; position:relative;
+}
+.station-node .node-ring svg{width:100%; height:100%; display:block; transform:rotate(-90deg);}
+.station-node .node-core{
+  position:absolute; inset:14%;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-size:clamp(11px,2.2vw,15px);
+  background:radial-gradient(circle at 35% 30%, var(--panel-3), var(--panel));
+  border:1px solid var(--line);
+  transition:all .25s ease;
+  text-align:center; line-height:1.3; padding:4px;
+}
+.station-node:hover .node-core{box-shadow:0 0 22px currentColor; transform:scale(1.05);}
+.station-node .node-label{
+  position:absolute; top:104%; left:50%; transform:translateX(-50%);
+  white-space:nowrap; font-size:11px; color:var(--ink-dim); letter-spacing:1px;
+}
+.station-node .node-level{
+  position:absolute; bottom:104%; left:50%; transform:translateX(-50%);
+  white-space:nowrap; font-size:10px; color:var(--gold); letter-spacing:2px;
+}
+
+.hub-hint{margin-top:22px; font-size:12.5px; color:var(--ink-faint); text-align:center; max-width:420px; line-height:1.7;}
+
+/* ---------- BRIEFING (before puzzle) ---------- */
+#screen-brief{justify-content:center; align-items:center;}
+
+/* ---------- PUZZLE ---------- */
+#screen-puzzle{padding-top:16px;}
+.puzzle-topbar{
+  width:100%; max-width:640px; display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:10px; font-size:12px; color:var(--ink-dim); letter-spacing:1px;
+}
+.puzzle-progressbar{
+  width:100%; max-width:640px; height:4px; background:var(--panel-2); border-radius:2px; overflow:hidden; margin-bottom:22px;
+}
+.puzzle-progressbar-fill{height:100%; background:linear-gradient(90deg,var(--gold),var(--gold-bright)); transition:width .4s ease;}
+
+.puzzle-card{
+  width:100%; max-width:640px;
+  background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:28px 26px 30px;
+  position:relative;
+}
+.puzzle-meaning{
+  text-align:center; font-size:15.5px; color:var(--ink); line-height:1.8;
+  padding:0 6px 22px;
+}
+.puzzle-zhuyin-hint{
+  text-align:center; font-size:12px; color:var(--gold); letter-spacing:3px; min-height:16px; margin-bottom:14px;
+}
+
+.slots{
+  display:flex; justify-content:center; gap:12px; margin:8px auto 26px; flex-wrap:wrap;
+}
+.slot{
+  width:64px; height:78px;
+  border:1.5px dashed var(--line);
+  border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-size:30px;
+  color:var(--ink);
+  cursor:pointer;
+  background:linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+  transition:all .18s ease;
+  position:relative;
+}
+.slot::before{
+  content:attr(data-index); position:absolute; top:3px; left:5px;
+  font-family:var(--font-mono); font-size:8px; color:var(--ink-faint);
+}
+.slot.filled{border-style:solid; border-color:var(--gold); background:rgba(201,162,39,.08);}
+.slot.locked{border-color:var(--jade); background:rgba(63,167,150,.1); cursor:default;}
+.slot.wrong{border-color:var(--vermillion); animation:shake .35s;}
+.slot.correct-flash{border-color:var(--jade); box-shadow:0 0 16px rgba(63,167,150,.5);}
+@keyframes shake{
+  0%,100%{transform:translateX(0);} 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);}
+}
+
+.tile-pool{
+  display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:22px; min-height:78px;
+}
+.tile{
+  width:60px; height:74px;
+  border-radius:3px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-size:28px;
+  color:var(--ink);
+  cursor:pointer;
+  background:
+    repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 6px, rgba(0,0,0,.12) 6px 7px),
+    linear-gradient(180deg, #3A2E1A, #2B2311);
+  border:1px solid #5C4A22;
+  box-shadow:0 3px 0 rgba(0,0,0,.35), inset 0 0 10px rgba(255,215,120,.06);
+  transition:transform .15s ease, box-shadow .15s ease;
+  user-select:none;
+}
+.tile:hover{transform:translateY(-3px); box-shadow:0 6px 10px rgba(0,0,0,.4), 0 0 14px rgba(201,162,39,.3);}
+.tile:active{transform:translateY(0);}
+.tile.used{opacity:0; pointer-events:none; transform:scale(.5);}
+
+.puzzle-actions{display:flex; justify-content:center; gap:12px; flex-wrap:wrap;}
+.puzzle-feedback{text-align:center; font-size:13px; color:var(--vermillion); min-height:18px; margin-top:10px; letter-spacing:1px;}
+.puzzle-feedback.ok{color:var(--jade);}
+.score-pill{
+  font-family:var(--font-mono); font-size:11px; color:var(--gold-bright);
+  border:1px solid var(--line); padding:3px 10px; border-radius:12px;
+}
+
+/* result overlay */
+.result-overlay{
+  position:fixed; inset:0; background:rgba(6,8,18,.82); backdrop-filter:blur(3px);
+  display:none; align-items:center; justify-content:center; z-index:20; padding:20px;
+}
+.result-overlay.active{display:flex;}
+.result-card{
+  width:100%; max-width:480px;
+  background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  border:1px solid var(--gold); border-radius:6px;
+  padding:32px 28px; text-align:center;
+  animation:fadeSlideIn .35s ease;
+}
+.result-idiom{font-family:var(--font-display); font-size:34px; letter-spacing:6px; color:var(--gold-bright); margin-bottom:6px;}
+.result-zhuyin{font-size:12px; letter-spacing:3px; color:var(--ink-faint); margin-bottom:18px;}
+.result-meaning{font-size:14.5px; line-height:1.8; margin-bottom:10px;}
+.result-allusion{font-size:13px; line-height:1.8; color:var(--ink-dim); border-top:1px solid var(--line-soft); padding-top:14px; margin-top:14px;}
+.result-score{margin:18px 0 6px; font-family:var(--font-display); font-size:16px; color:var(--jade);}
+
+/* ---------- STATION COMPLETE ---------- */
+#screen-station-done{justify-content:center; align-items:center; text-align:center;}
+
+/* ---------- IMPORT ---------- */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(6,8,18,.85); backdrop-filter:blur(2px);
+  display:none; align-items:flex-start; justify-content:center; z-index:30; padding:36px 16px; overflow-y:auto;
+}
+.modal-overlay.active{display:flex;}
+.modal-card{
+  width:100%; max-width:620px;
+  background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  border:1px solid var(--line); border-radius:6px;
+  padding:28px 26px 26px;
+}
+.modal-title{font-family:var(--font-display); font-size:20px; letter-spacing:3px; color:var(--gold-bright); margin-bottom:6px;}
+.modal-sub{font-size:12.5px; color:var(--ink-dim); line-height:1.8; margin-bottom:18px;}
+.modal-close{position:absolute; top:14px; right:16px; cursor:pointer; color:var(--ink-faint); font-size:20px;}
+.modal-card{position:relative;}
+
+.dropzone{
+  border:1.5px dashed var(--line); border-radius:6px; padding:30px 16px; text-align:center;
+  color:var(--ink-dim); font-size:13px; cursor:pointer; transition:all .2s;
+  margin-bottom:16px;
+}
+.dropzone.dragover{border-color:var(--gold-bright); background:rgba(201,162,39,.06); color:var(--ink);}
+.dropzone .dz-icon{font-size:26px; margin-bottom:8px; display:block;}
+.dropzone input{display:none;}
+
+.import-summary{
+  font-size:12.5px; line-height:1.9; background:var(--panel); border:1px solid var(--line-soft);
+  border-radius:4px; padding:12px 16px; margin-bottom:14px; display:none;
+}
+.import-summary.show{display:block;}
+.import-summary b{color:var(--gold-bright);}
+.preview-table{width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:16px; display:none;}
+.preview-table.show{display:table;}
+.preview-table th, .preview-table td{border:1px solid var(--line-soft); padding:5px 7px; text-align:left; color:var(--ink-dim);}
+.preview-table th{color:var(--gold); font-weight:600;}
+.modal-actions{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:6px;}
+.field-note{font-size:11px; color:var(--ink-faint); margin-top:10px; line-height:1.8;}
+.field-note code{color:var(--gold); font-family:var(--font-mono);}
+
+.toast{
+  position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--panel-3); border:1px solid var(--gold); color:var(--ink);
+  padding:10px 20px; border-radius:20px; font-size:13px; z-index:50;
+  opacity:0; pointer-events:none; transition:all .3s ease;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+@media (max-width:480px){
+  .boot-title{font-size:32px; letter-spacing:6px;}
+  .slot{width:52px; height:64px; font-size:24px;}
+  .tile{width:50px; height:62px; font-size:22px;}
+}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div id="app">
+
+  <!-- BOOT -->
+  <div class="screen active" id="screen-boot">
+    <svg class="boot-emblem" viewBox="0 0 200 200">
+      <circle cx="100" cy="100" r="86" fill="none" stroke="#C9A227" stroke-width="1" opacity="0.5"/>
+      <circle cx="100" cy="100" r="70" fill="none" stroke="#C9A227" stroke-width="1" opacity="0.3" stroke-dasharray="2 6"/>
+      <g stroke="#EACD6B" stroke-width="1.4" fill="none" opacity="0.9">
+        <path d="M100 30 L100 170 M30 100 L170 100" opacity="0.25"/>
+        <circle cx="100" cy="100" r="42" />
+      </g>
+      <text x="100" y="112" text-anchor="middle" font-size="46" fill="#F2EEDC" font-family="'DFKai-SB','KaiTi',serif">字</text>
+      <g fill="#EACD6B">
+        <circle cx="100" cy="18" r="2.4"/><circle cx="170" cy="60" r="1.6"/>
+        <circle cx="170" cy="140" r="1.8"/><circle cx="100" cy="182" r="2"/>
+        <circle cx="30" cy="140" r="1.6"/><circle cx="30" cy="60" r="2"/>
+      </g>
+    </svg>
+    <div class="eyebrow">SPACE IDIOM VOYAGE</div>
+    <div class="boot-title">字宙探索號</div>
+    <div class="boot-sub">成語星際任務 · Chengyu Star Mission</div>
+    <div class="boot-tagline">獻給每一位即將啟航的見習領航員</div>
+    <button class="brushed-btn primary" id="btn-boot-start">啟動艦橋</button>
+  </div>
+
+  <!-- STORY -->
+  <div class="screen" id="screen-story">
+    <div class="story-skip" id="btn-story-skip">跳過劇情 ▸</div>
+    <div class="story-stage">
+      <div class="mentor-portrait" id="mentor-portrait" style="display:none;"></div>
+      <div class="story-namecard" id="story-namecard"></div>
+      <div class="story-textbox" id="story-textbox"></div>
+      <div class="story-nav">
+        <button class="brushed-btn small ghost" id="btn-story-prev">◂ 上一段</button>
+        <div class="story-progress" id="story-progress"></div>
+        <button class="brushed-btn small primary" id="btn-story-next">下一段 ▸</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUB -->
+  <div class="screen" id="screen-hub">
+    <div class="hub-topbar">
+      <div class="ship-id">
+        <div class="name">字宙號</div>
+        <div class="sub">ZI-ZHOU · 星際巡航艦</div>
+      </div>
+      <div class="hub-stats">
+        <div class="stat"><div class="val" id="hub-repair-pct">0%</div><div class="lab">整體修復</div></div>
+        <div class="stat"><div class="val" id="hub-score">0</div><div class="lab">總積分</div></div>
+      </div>
+      <div class="hub-actions">
+        <button class="brushed-btn small" id="btn-open-import">匯入題庫</button>
+        <button class="brushed-btn small ghost" id="btn-replay-story">劇情</button>
+      </div>
+    </div>
+
+    <div class="orbit-wrap" id="orbit-wrap">
+      <svg viewBox="0 0 640 640" id="orbit-svg"></svg>
+      <div class="ship-core">
+        <div class="core-inner">
+          <div class="pct" id="core-pct">0%</div>
+          <div class="lab">艦體修復</div>
+        </div>
+      </div>
+      <!-- station nodes injected by JS -->
+    </div>
+
+    <div class="hub-hint">點選任一星域,降落並尋回散落的成語晶片。修復五大核心系統,字宙號才能飛越風暴、返回文明星域。</div>
+  </div>
+
+  <!-- BRIEFING -->
+  <div class="screen" id="screen-brief">
+    <div class="story-stage">
+      <div class="mentor-portrait" id="brief-portrait"></div>
+      <div class="story-namecard">文伯</div>
+      <div class="story-textbox" id="brief-text"></div>
+      <div class="story-nav">
+        <button class="brushed-btn ghost small" id="btn-brief-back">◂ 返回星圖</button>
+        <button class="brushed-btn primary" id="btn-brief-start">降落星域,開始拼組 ▸</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PUZZLE -->
+  <div class="screen" id="screen-puzzle">
+    <div class="puzzle-topbar">
+      <span id="puzzle-station-name">—</span>
+      <span class="score-pill" id="puzzle-session-score">本站積分 0</span>
+      <span id="puzzle-progress-text">1 / 8</span>
+    </div>
+    <div class="puzzle-progressbar"><div class="puzzle-progressbar-fill" id="puzzle-progressbar-fill" style="width:0%"></div></div>
+
+    <div class="puzzle-card">
+      <div class="puzzle-zhuyin-hint" id="puzzle-zhuyin-hint"></div>
+      <div class="puzzle-meaning" id="puzzle-meaning">請將下方零件拼回正確順序,修復這片成語晶片。</div>
+      <div class="slots" id="puzzle-slots"></div>
+      <div class="tile-pool" id="puzzle-tiles"></div>
+      <div class="puzzle-actions">
+        <button class="brushed-btn small" id="btn-puzzle-hint">💡 提示 (-20)</button>
+        <button class="brushed-btn small ghost" id="btn-puzzle-reset">↺ 重新排列</button>
+        <button class="brushed-btn small ghost" id="btn-puzzle-exit">✕ 返回星圖</button>
+      </div>
+      <div class="puzzle-feedback" id="puzzle-feedback"></div>
+    </div>
+  </div>
+
+  <!-- STATION DONE -->
+  <div class="screen" id="screen-station-done">
+    <div class="story-stage">
+      <div class="mentor-portrait" id="done-portrait"></div>
+      <div class="story-namecard">文伯</div>
+      <div class="story-textbox" id="done-text"></div>
+      <div class="story-nav">
+        <button class="brushed-btn primary" id="btn-done-continue">返回星圖 ▸</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- result overlay -->
+<div class="result-overlay" id="result-overlay">
+  <div class="result-card">
+    <div class="result-idiom" id="result-idiom">—</div>
+    <div class="result-zhuyin" id="result-zhuyin">—</div>
+    <div class="result-meaning" id="result-meaning">—</div>
+    <div class="result-allusion" id="result-allusion">—</div>
+    <div class="result-score" id="result-score">+0 分</div>
+    <button class="brushed-btn primary" id="btn-result-continue">繼續 ▸</button>
+  </div>
+</div>
+
+<!-- import modal -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal-card">
+    <div class="modal-close" id="btn-close-import">✕</div>
+    <div class="modal-title">匯入自訂題庫</div>
+    <div class="modal-sub">
+      支援 .xlsx / .xls / .csv 檔案。老師可依此欄位自行編修題目,匯入後即取代對應星域的題目。<br>
+      必要欄位:<code>星站關卡</code>、<code>難度</code>、<code>成語</code>;選填:<code>注音</code>、<code>意思</code>、<code>典故/由來</code>。
+    </div>
+    <div class="dropzone" id="dropzone">
+      <span class="dz-icon">🛰️</span>
+      將檔案拖曳至此,或點擊選擇檔案
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+    </div>
+    <div class="import-summary" id="import-summary"></div>
+    <table class="preview-table" id="preview-table"></table>
+    <div class="field-note">
+      <code>星站關卡</code> 請填入:啟航星 / 毅力星雲 / 團隊小行星帶 / 冒險黑洞 / 智慧終點站(五選一)。<br>
+      <code>難度</code> 請填入 ★ / ★★ / ★★★,決定拼圖出現的干擾字數量。
+    </div>
+    <div class="modal-actions">
+      <button class="brushed-btn small ghost" id="btn-reset-bank">恢復內建100題</button>
+      <button class="brushed-btn small ghost" id="btn-cancel-import">取消</button>
+      <button class="brushed-btn small primary" id="btn-apply-import" disabled>套用題庫</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script id="default-bank-data" type="application/json">
+[{"id": 1, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "守株待兔", "zhuyin": "ㄕㄡˇ ㄓㄨ ㄉㄞˋ ㄊㄨˋ", "meaning": "比喻不知變通,死守經驗坐等好運。", "allusion": "宋國農夫見兔子撞死在樹樁旁,便放下農具天天守在樹旁等兔子,結果田地荒蕪。"}, {"id": 2, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "畫蛇添足", "zhuyin": "ㄏㄨㄚˋ ㄕㄜˊ ㄊㄧㄢ ㄗㄨˊ", "meaning": "比喻多此一舉,反而壞事。", "allusion": "楚人比賽畫蛇,先畫完的人得意加畫蛇腳,結果輸掉比賽。"}, {"id": 3, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "亡羊補牢", "zhuyin": "ㄨㄤˊ ㄧㄤˊ ㄅㄨˇ ㄌㄠˊ", "meaning": "比喻犯錯後及時補救,尚不算晚。", "allusion": "羊丟失後才修補羊圈,防止再度丟失。"}, {"id": 4, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "井底之蛙", "zhuyin": "ㄐㄧㄥˇ ㄉㄧˇ ㄓ ㄨㄚ", "meaning": "比喻見識淺薄、眼界狹小的人。", "allusion": "青蛙住在井底,以為天空只有井口那麼大。"}, {"id": 5, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "狐假虎威", "zhuyin": "ㄏㄨˊ ㄐㄧㄚˇ ㄏㄨˇ ㄨㄟ", "meaning": "比喻倚仗他人權勢欺壓別人。", "allusion": "狐狸假借老虎的威風,嚇跑森林裡的動物。"}, {"id": 6, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "掩耳盜鈴", "zhuyin": "ㄧㄢˇ ㄦˇ ㄉㄠˋ ㄌㄧㄥˊ", "meaning": "比喻自己欺騙自己。", "allusion": "小偷怕鈴聲被發現,搗住自己耳朵去偷鈴鐺。"}, {"id": 7, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "刻舟求劍", "zhuyin": "ㄎㄜˋ ㄓㄡ ㄑㄧㄡˊ ㄐㄧㄢˋ", "meaning": "比喻拘泥成規,不知變通。", "allusion": "楚人劍掉入水中,在船上刻記號,以為靠記號能找回劍。"}, {"id": 8, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "拔苗助長", "zhuyin": "ㄅㄚˊ ㄇㄧㄠˊ ㄓㄨˋ ㄓㄤˇ", "meaning": "比喻違反規律,急於求成反而壞事。", "allusion": "農夫嫌禾苗長太慢,把苗拔高,結果禾苗全枯死。"}, {"id": 9, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "對牛彈琴", "zhuyin": "ㄉㄨㄟˋ ㄋㄧㄡˊ ㄊㄢˊ ㄑㄧㄣˊ", "meaning": "比喻對不懂道理的人講道理,白費力氣。", "allusion": "公明儀對牛彈奏高雅樂曲,牛毫無反應,只顧吃草。"}, {"id": 10, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "濫竽充數", "zhuyin": "ㄌㄢˋ ㄩˊ ㄔㄨㄥ ㄕㄨˋ", "meaning": "比喻沒有真才實學卻混在行家中充數。", "allusion": "南郭先生不會吹竽,混在樂隊裡假裝演奏。"}, {"id": 11, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "杯弓蛇影", "zhuyin": "ㄅㄟ ㄍㄨㄥ ㄕㄜˊ ㄧㄥˇ", "meaning": "比喻疑神疑鬼,自己嚇自己。", "allusion": "誤把杯中弓的倒影當成蛇而嚇出病來。"}, {"id": 12, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "塞翁失馬", "zhuyin": "ㄙㄞˋ ㄨㄥ ㄕ ㄇㄚˇ", "meaning": "比喻禍福相依,壞事可能變好事。", "allusion": "邊塞老翁丟馬,後來馬帶回一群駿馬。"}, {"id": 13, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "望梅止渴", "zhuyin": "ㄨㄤˋ ㄇㄟˊ ㄓˇ ㄎㄜˇ", "meaning": "比喻用空想安慰自己。", "allusion": "曹操謊稱前方有梅林,讓士兵想像酸味解渴。"}, {"id": 14, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "畫龍點睛", "zhuyin": "ㄏㄨㄚˋ ㄌㄨㄥˊ ㄉㄧㄢˇ ㄐㄧㄥ", "meaning": "比喻在關鍵處加上一筆,使整體更生動傳神。", "allusion": "畫家張僧繇畫龍點上眼睛,龍便破壁飛去。"}, {"id": 15, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "葉公好龍", "zhuyin": "ㄧㄝˋ ㄍㄨㄥ ㄏㄠˋ ㄌㄨㄥˊ", "meaning": "比喻表面愛好某事物,其實並不真心。", "allusion": "葉公喜歡畫龍,真龍出現卻嚇得逃跑。"}, {"id": 16, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "杞人憂天", "zhuyin": "ㄑㄧˇ ㄖㄣˊ ㄧㄡ ㄊㄧㄢ", "meaning": "比喻不必要的憂慮。", "allusion": "杞國有人擔心天會塌下來,寢食難安。"}, {"id": 17, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "東施效顰", "zhuyin": "ㄉㄨㄥ ㄕ ㄒㄧㄠˋ ㄆㄧㄣˊ", "meaning": "比喻盲目模仿他人,反而弄巧成拙。", "allusion": "醜女東施模仿美女西施皺眉,結果更難看。"}, {"id": 18, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "邯鄲學步", "zhuyin": "ㄏㄢˊ ㄉㄢ ㄒㄩㄝˊ ㄅㄨˋ", "meaning": "比喻一味模仿別人,連自己原本會的也忘了。", "allusion": "燕國少年到邯鄲學走路姿勢,結果爬著回家。"}, {"id": 19, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "一箭雙鵰", "zhuyin": "ㄧ ㄐㄧㄢˋ ㄕㄨㄤ ㄉㄧㄠ", "meaning": "比喻一個行動達成兩個目的。", "allusion": "射箭高手一箭射下兩隻大鵰。"}, {"id": 20, "stationNo": 1, "station": "啟航星", "level": "★", "idiom": "半途而廢", "zhuyin": "ㄅㄢˋ ㄊㄨˊ ㄦˊ ㄈㄟˋ", "meaning": "比喻做事做到一半就放棄。", "allusion": "樂羊子妻用剪斷織布比喻學習不可中斷。"}, {"id": 21, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "專心致志", "zhuyin": "ㄓㄨㄢ ㄒㄧㄣ ㄓˋ ㄓˋ", "meaning": "集中精神,一心一意做一件事。", "allusion": "出自《孟子》,形容學弈者專注不分心。"}, {"id": 22, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "好高騖遠", "zhuyin": "ㄏㄠˋ ㄍㄠ ㄨˋ ㄩㄢˇ", "meaning": "不切實際地追求過高過遠的目標。", "allusion": "形容人不切實際、脫離現實的志向。"}, {"id": 23, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "腳踏實地", "zhuyin": "ㄐㄧㄠˇ ㄊㄚˋ ㄕˊ ㄉㄧˋ", "meaning": "做事踏實認真,不投機取巧。", "allusion": "宋代學者司馬光被稱讚做事腳踏實地。"}, {"id": 24, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "精益求精", "zhuyin": "ㄐㄧㄥ ㄧˋ ㄑㄧㄡˊ ㄐㄧㄥ", "meaning": "已經很好了還要求更好。", "allusion": "出自《論語》,形容精雕細琢、追求完美。"}, {"id": 25, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "持之以恆", "zhuyin": "ㄔˊ ㄓ ㄧˇ ㄏㄥˊ", "meaning": "長久堅持下去,不半途而廢。", "allusion": "形容做事有恆心,能長久堅持。"}, {"id": 26, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "全力以赴", "zhuyin": "ㄑㄩㄢˊ ㄌㄧˋ ㄧˇ ㄈㄨˋ", "meaning": "用盡全部力量去做。", "allusion": "形容竭盡所能,毫無保留。"}, {"id": 27, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "力爭上游", "zhuyin": "ㄌㄧˋ ㄓㄥ ㄕㄤˋ ㄧㄡˊ", "meaning": "努力爭取進步,不甘落後。", "allusion": "如逆水行舟,奮力向上游前進。"}, {"id": 28, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "再接再厲", "zhuyin": "ㄗㄞˋ ㄐㄧㄝ ㄗㄞˋ ㄌㄧˋ", "meaning": "比喻繼續努力,加倍奮發。", "allusion": "原指鬥雞每次交鋒前先磨利嘴喙再戰。"}, {"id": 29, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "一絲不苟", "zhuyin": "ㄧ ㄙ ㄅㄨˋ ㄍㄡˇ", "meaning": "做事極為細心謹慎,一點都不馬虎。", "allusion": "形容做事嚴謹認真,連細節都不馬虎。"}, {"id": 30, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "循序漸進", "zhuyin": "ㄒㄩㄣˊ ㄒㄩˋ ㄐㄧㄢˋ ㄐㄧㄣˋ", "meaning": "按照次序,一步步逐漸推進。", "allusion": "出自朱熹讀書法,強調學習應按部就班。"}, {"id": 31, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "鐵杵磨針", "zhuyin": "ㄊㄧㄝˇ ㄔㄨˇ ㄇㄛˊ ㄓㄣ", "meaning": "比喻只要有恆心,再難的事也能成功。", "allusion": "李白見老婦磨鐵杵成針,受啟發勤學苦練。"}, {"id": 32, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "鑿壁偷光", "zhuyin": "ㄗㄠˊ ㄅㄧˋ ㄊㄡ ㄍㄨㄤ", "meaning": "比喻刻苦勤學。", "allusion": "匡衡家貧,鑿穿牆壁借鄰家燈光讀書。"}, {"id": 33, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "懸梁刺股", "zhuyin": "ㄒㄩㄢˊ ㄌㄧㄤˊ ㄘˋ ㄍㄨˇ", "meaning": "比喻刻苦勤學。", "allusion": "孫敬以繩繫髮懸梁、蘇秦以錐刺股防止打瞌睡讀書。"}, {"id": 34, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "囊螢映雪", "zhuyin": "ㄋㄤˊ ㄧㄥˊ ㄧㄥˋ ㄒㄩㄝˇ", "meaning": "比喻家貧仍勤學不倦。", "allusion": "車胤用袋子裝螢火蟲照明,孫康藉雪光讀書。"}, {"id": 35, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "程門立雪", "zhuyin": "ㄔㄥˊ ㄇㄣˊ ㄌㄧˋ ㄒㄩㄝˇ", "meaning": "比喻尊敬師長、誠心求教。", "allusion": "楊時冒雪站在程頤門外等候請教。"}, {"id": 36, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "孟母三遷", "zhuyin": "ㄇㄥˋ ㄇㄨˇ ㄙㄢ ㄑㄧㄢ", "meaning": "比喻父母重視環境對孩子教育的影響。", "allusion": "孟母為孟子成長環境三次搬家。"}, {"id": 37, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "三顧茅廬", "zhuyin": "ㄙㄢ ㄍㄨˋ ㄇㄠˊ ㄌㄨˊ", "meaning": "比喻誠心誠意一再邀請賢才。", "allusion": "劉備三次拜訪諸葛亮的草屋請他出山。"}, {"id": 38, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "磨杵成針", "zhuyin": "ㄇㄛˊ ㄔㄨˇ ㄔㄥˊ ㄓㄣ", "meaning": "比喻只要有恆心,終能完成看似不可能的事。", "allusion": "與鐵杵磨針同源,比喻堅持不懈。"}, {"id": 39, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "業精於勤", "zhuyin": "ㄧㄝˋ ㄐㄧㄥ ㄩˊ ㄑㄧㄣˊ", "meaning": "學業精進在於勤奮努力。", "allusion": "出自韓愈〈進學解〉。"}, {"id": 40, "stationNo": 2, "station": "毅力星雲", "level": "★", "idiom": "有志竟成", "zhuyin": "ㄧㄡˇ ㄓˋ ㄐㄧㄥˋ ㄔㄥˊ", "meaning": "只要有堅定志向,終能成功。", "allusion": "出自《後漢書》,勉勵人立志向前。"}, {"id": 41, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "集思廣益", "zhuyin": "ㄐㄧˊ ㄙ ㄍㄨㄤˇ ㄧˋ", "meaning": "集合眾人智慧,獲得更好的效果。", "allusion": "出自諸葛亮勸人廣納群言之意。"}, {"id": 42, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "群策群力", "zhuyin": "ㄑㄩㄣˊ ㄘㄜˋ ㄑㄩㄣˊ ㄌㄧˋ", "meaning": "大家一起出主意、出力量。", "allusion": "形容集合眾人的智慧與力量共同完成事情。"}, {"id": 43, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "同心協力", "zhuyin": "ㄊㄨㄥˊ ㄒㄧㄣ ㄒㄧㄝˊ ㄌㄧˋ", "meaning": "齊心合力共同完成事情。", "allusion": "形容眾人一心,共同努力。"}, {"id": 44, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "眾志成城", "zhuyin": "ㄓㄨㄥˋ ㄓˋ ㄔㄥˊ ㄔㄥˊ", "meaning": "眾人團結一心,力量像城牆一樣堅固。", "allusion": "出自《國語》,形容團結能產生巨大力量。"}, {"id": 45, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "手足情深", "zhuyin": "ㄕㄡˇ ㄗㄨˊ ㄑㄧㄥˊ ㄕㄣ", "meaning": "形容兄弟姊妹感情深厚。", "allusion": "以手足比喻兄弟姊妹之間血脈相連的情誼。"}, {"id": 46, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "患難與共", "zhuyin": "ㄏㄨㄢˋ ㄋㄢˋ ㄩˇ ㄍㄨㄥˋ", "meaning": "一起共同承擔困難危險。", "allusion": "形容彼此在艱難處境中互相扶持。"}, {"id": 47, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "肝膽相照", "zhuyin": "ㄍㄢ ㄉㄢˇ ㄒㄧㄤ ㄓㄠˋ", "meaning": "比喻朋友之間真心誠意、彼此坦誠。", "allusion": "形容交情深厚,以真心相待。"}, {"id": 48, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "心心相印", "zhuyin": "ㄒㄧㄣ ㄒㄧㄣ ㄒㄧㄤ ㄧㄣˋ", "meaning": "彼此心意契合,不必言傳就能理解。", "allusion": "原為佛家用語,後形容知己間默契深厚。"}, {"id": 49, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "志同道合", "zhuyin": "ㄓˋ ㄊㄨㄥˊ ㄉㄠˋ ㄏㄜˊ", "meaning": "志向理想相同,彼此合得來。", "allusion": "形容彼此理念一致,能共同奮鬥。"}, {"id": 50, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "情投意合", "zhuyin": "ㄑㄧㄥˊ ㄊㄡˊ ㄧˋ ㄏㄜˊ", "meaning": "感情、心意彼此契合。", "allusion": "形容雙方相處融洽,心意相通。"}, {"id": 51, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "齊心協力", "zhuyin": "ㄑㄧˊ ㄒㄧㄣ ㄒㄧㄝˊ ㄌㄧˋ", "meaning": "大家一心,共同努力。", "allusion": "與同心協力意近,強調團隊合作。"}, {"id": 52, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "團結一致", "zhuyin": "ㄊㄨㄢˊ ㄐㄧㄝˊ ㄧˊ ㄓˋ", "meaning": "眾人聯合起來,步調一致。", "allusion": "形容群體行動一致,共同對抗困難。"}, {"id": 53, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "同舟共濟", "zhuyin": "ㄊㄨㄥˊ ㄓㄡ ㄍㄨㄥˋ ㄐㄧˋ", "meaning": "比喻同心協力,共渡難關。", "allusion": "乘同一條船的人一起合作渡河。"}, {"id": 54, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "相輔相成", "zhuyin": "ㄒㄧㄤ ㄈㄨˇ ㄒㄧㄤ ㄔㄥˊ", "meaning": "兩者互相配合、互相補充,共同成就。", "allusion": "形容彼此互補,缺一不可。"}, {"id": 55, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "分工合作", "zhuyin": "ㄈㄣ ㄍㄨㄥ ㄏㄜˊ ㄗㄨㄛˋ", "meaning": "各自分擔不同工作,共同完成目標。", "allusion": "形容團隊依專長分配任務、協同完成。"}, {"id": 56, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "各司其職", "zhuyin": "ㄍㄜˋ ㄙ ㄑㄧˊ ㄓˊ", "meaning": "每個人各自負責自己的職務。", "allusion": "形容分工明確,人人盡責。"}, {"id": 57, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "攜手並進", "zhuyin": "ㄒㄧㄝˊ ㄕㄡˇ ㄅㄧㄥˋ ㄐㄧㄣˋ", "meaning": "手拉著手一起前進,比喻共同努力。", "allusion": "形容彼此互相扶持,共同邁向目標。"}, {"id": 58, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "眾擎易舉", "zhuyin": "ㄓㄨㄥˋ ㄑㄧㄥˊ ㄧˋ ㄐㄩˇ", "meaning": "眾人一起用力,事情容易辦成。", "allusion": "比喻集合眾人力量,再重的事也能舉起。"}, {"id": 59, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "精誠團結", "zhuyin": "ㄐㄧㄥ ㄔㄥˊ ㄊㄨㄢˊ ㄐㄧㄝˊ", "meaning": "以真誠的心緊密團結在一起。", "allusion": "形容團體上下一心,毫無私心地合作。"}, {"id": 60, "stationNo": 3, "station": "團隊小行星帶", "level": "★★", "idiom": "風雨同舟", "zhuyin": "ㄈㄥ ㄩˇ ㄊㄨㄥˊ ㄓㄡ", "meaning": "比喻共同經歷困境,患難與共。", "allusion": "形容在艱難時刻仍不離不棄、共同面對。"}, {"id": 61, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "一馬當先", "zhuyin": "ㄧ ㄇㄚˇ ㄉㄤ ㄒㄧㄢ", "meaning": "比喻走在最前面,帶頭衝鋒或領先眾人。", "allusion": "原指作戰時率先衝在最前方。"}, {"id": 62, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "勇往直前", "zhuyin": "ㄩㄥˇ ㄨㄤˇ ㄓˊ ㄑㄧㄢˊ", "meaning": "勇敢地一直向前邁進,毫不畏懼。", "allusion": "形容遇到困難仍堅持前進,不退縮。"}, {"id": 63, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "披荊斬棘", "zhuyin": "ㄆㄧ ㄐㄧㄥ ㄓㄢˇ ㄐㄧˊ", "meaning": "比喻克服重重困難,開創新局。", "allusion": "原指砍除荊棘雜草開路前行。"}, {"id": 64, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "排除萬難", "zhuyin": "ㄆㄞˊ ㄔㄨˊ ㄨㄢˋ ㄋㄢˊ", "meaning": "克服各種困難阻礙。", "allusion": "形容不畏艱難、堅持完成目標。"}, {"id": 65, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "化險為夷", "zhuyin": "ㄏㄨㄚˋ ㄒㄧㄢˇ ㄨㄟˊ ㄧˊ", "meaning": "把危險的情況轉化為平安。", "allusion": "形容原本危急的情況最終化解無事。"}, {"id": 66, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "轉危為安", "zhuyin": "ㄓㄨㄢˇ ㄨㄟ ㄨㄟˊ ㄢ", "meaning": "由危險的處境轉變為平安穩定。", "allusion": "形容局勢從危急逆轉為安穩。"}, {"id": 67, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "絕處逢生", "zhuyin": "ㄐㄩㄝˊ ㄔㄨˋ ㄈㄥˊ ㄕㄥ", "meaning": "在絕望的困境中出現生機轉機。", "allusion": "形容原以為無路可走,卻意外獲得轉機。"}, {"id": 68, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "柳暗花明", "zhuyin": "ㄌㄧㄡˇ ㄢˋ ㄏㄨㄚ ㄇㄧㄥˊ", "meaning": "比喻在困境中忽然出現新的希望與轉機。", "allusion": "出自陸游詩句「山重水複疑無路,柳暗花明又一村」。"}, {"id": 69, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "破釜沉舟", "zhuyin": "ㄆㄛˋ ㄈㄨˇ ㄔㄣˊ ㄓㄡ", "meaning": "比喻下定決心,不留退路,拼死一戰。", "allusion": "項羽渡河後打破鍋子、鑿沉船隻,表示決一死戰。"}, {"id": 70, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "臥薪嘗膽", "zhuyin": "ㄨㄛˋ ㄒㄧㄣ ㄔㄤˊ ㄉㄢˇ", "meaning": "比喻刻苦自勵,發憤圖強,不忘雪恥。", "allusion": "越王勾踐睡柴草、嚐苦膽以激勵自己復國。"}, {"id": 71, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "完璧歸趙", "zhuyin": "ㄨㄢˊ ㄅㄧˋ ㄍㄨㄟ ㄓㄠˋ", "meaning": "比喻把原物完好無損地歸還原主。", "allusion": "藺相如將和氏璧完好帶回趙國。"}, {"id": 72, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "負荊請罪", "zhuyin": "ㄈㄨˋ ㄐㄧㄥ ㄑㄧㄥˇ ㄗㄨㄟˋ", "meaning": "比喻誠心誠意向人認錯道歉。", "allusion": "廉頗背著荊條向藺相如請罪。"}, {"id": 73, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "精衛填海", "zhuyin": "ㄐㄧㄥ ㄨㄟˋ ㄊㄧㄢˊ ㄏㄞˇ", "meaning": "比喻不畏艱難、意志堅定地奮鬥到底。", "allusion": "精衛鳥銜石填海,矢志不渝。"}, {"id": 74, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "愚公移山", "zhuyin": "ㄩˊ ㄍㄨㄥ ㄧˊ ㄕㄢ", "meaning": "比喻只要有恆心毅力,再大的困難也能克服。", "allusion": "愚公不畏艱難率子孫世代挖山。"}, {"id": 75, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "夸父追日", "zhuyin": "ㄎㄨㄚ ㄈㄨˋ ㄓㄨㄟ ㄖˋ", "meaning": "比喻立下宏大志向、勇於追求理想。", "allusion": "夸父追逐太陽,即使力竭仍奮力不懈。"}, {"id": 76, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "女媧補天", "zhuyin": "ㄋㄩˇ ㄨㄚ ㄅㄨˇ ㄊㄧㄢ", "meaning": "比喻拯救危局、修補缺失的偉大作為。", "allusion": "神話中女媧煉石補天,拯救蒼生。"}, {"id": 77, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "鍥而不捨", "zhuyin": "ㄑㄧㄝˋ ㄦˊ ㄅㄨˋ ㄕㄜˇ", "meaning": "比喻做事有恆心毅力,堅持到底不放棄。", "allusion": "出自《荀子》,以雕刻為喻,強調堅持。"}, {"id": 78, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "百折不撓", "zhuyin": "ㄅㄞˇ ㄓㄜˊ ㄅㄨˋ ㄋㄠˊ", "meaning": "無論遭受多少挫折都不屈服退縮。", "allusion": "形容意志堅強,屢敗屢戰。"}, {"id": 79, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "迎難而上", "zhuyin": "ㄧㄥˊ ㄋㄢˊ ㄦˊ ㄕㄤˋ", "meaning": "面對困難不退縮,勇敢向前面對挑戰。", "allusion": "形容主動面對挑戰,不逃避。"}, {"id": 80, "stationNo": 4, "station": "冒險黑洞", "level": "★★", "idiom": "力挽狂瀾", "zhuyin": "ㄌㄧˋ ㄨㄢˇ ㄎㄨㄤˊ ㄌㄢˊ", "meaning": "比喻盡力挽救危急的局勢。", "allusion": "原指用力挽回洶湧的波瀾。"}, {"id": 81, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "螳螂捕蟬", "zhuyin": "ㄊㄤˊ ㄌㄤˊ ㄅㄨˇ ㄔㄢˊ", "meaning": "比喻只顧眼前利益,不知禍患就在後面。", "allusion": "螳螂捕蟬時,不知黃雀在後準備啄食牠。"}, {"id": 82, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "未雨綢繆", "zhuyin": "ㄨㄟˋ ㄩˇ ㄔㄡˊ ㄇㄡˊ", "meaning": "比喻事先做好準備,防患於未然。", "allusion": "趁天未下雨先修補門窗鳥巢。"}, {"id": 83, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "防患未然", "zhuyin": "ㄈㄤˊ ㄏㄨㄢˋ ㄨㄟˋ ㄖㄢˊ", "meaning": "在禍患尚未發生前就先預防。", "allusion": "形容具有遠見,提前做好防範。"}, {"id": 84, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "深謀遠慮", "zhuyin": "ㄕㄣ ㄇㄡˊ ㄩㄢˇ ㄌㄩˋ", "meaning": "計畫周密,考慮長遠。", "allusion": "形容思慮周全,能預見長遠後果。"}, {"id": 85, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "見微知著", "zhuyin": "ㄐㄧㄢˋ ㄨㄟˊ ㄓ ㄓㄨˋ", "meaning": "從細微的跡象就能推知事情的整體發展。", "allusion": "形容觀察敏銳,能由小見大。"}, {"id": 86, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "舉一反三", "zhuyin": "ㄐㄩˇ ㄧ ㄈㄢˇ ㄙㄢ", "meaning": "從一件事情類推而理解其他許多事情。", "allusion": "出自《論語》,形容善於學習領悟。"}, {"id": 87, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "融會貫通", "zhuyin": "ㄖㄨㄥˊ ㄏㄨㄟˋ ㄍㄨㄢˋ ㄊㄨㄥ", "meaning": "把各種知識或道理融合貫穿,徹底理解。", "allusion": "形容學習能整合各方知識,深入理解。"}, {"id": 88, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "觸類旁通", "zhuyin": "ㄔㄨˋ ㄌㄟˋ ㄆㄤˊ ㄊㄨㄥ", "meaning": "掌握某一事物的道理後,能推知同類其他事物。", "allusion": "出自《周易》,形容善於推理應用。"}, {"id": 89, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "恍然大悟", "zhuyin": "ㄏㄨㄤˇ ㄖㄢˊ ㄉㄚˋ ㄨˋ", "meaning": "忽然間完全明白過來。", "allusion": "形容原本疑惑,瞬間豁然理解。"}, {"id": 90, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "豁然開朗", "zhuyin": "ㄏㄨㄛˋ ㄖㄢˊ ㄎㄞ ㄌㄤˇ", "meaning": "原本困惑不解,忽然間開闊明白。", "allusion": "出自陶淵明〈桃花源記〉,形容視野豁然開展。"}, {"id": 91, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "撥雲見日", "zhuyin": "ㄅㄛ ㄩㄣˊ ㄐㄧㄢˋ ㄖˋ", "meaning": "比喻撥開陰霾見到光明,困境獲得解決。", "allusion": "形容真相大白或困境終於解除。"}, {"id": 92, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "峰迴路轉", "zhuyin": "ㄈㄥ ㄏㄨㄟˊ ㄌㄨˋ ㄓㄨㄢˇ", "meaning": "比喻事情經歷曲折後出現轉機。", "allusion": "原形容山勢曲折,道路隨山勢迴繞。"}, {"id": 93, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "山窮水盡", "zhuyin": "ㄕㄢ ㄑㄩㄥˊ ㄕㄨㄟˇ ㄐㄧㄣˋ", "meaning": "比喻陷入無路可走的絕境。", "allusion": "形容處境艱難,已無退路可循。"}, {"id": 94, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "否極泰來", "zhuyin": "ㄆㄧˇ ㄐㄧˊ ㄊㄞˋ ㄌㄞˊ", "meaning": "比喻壞運到了極點,好運就會到來。", "allusion": "出自《周易》否卦、泰卦的循環變化之理。"}, {"id": 95, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "溫故知新", "zhuyin": "ㄨㄣ ㄍㄨˋ ㄓ ㄒㄧㄣ", "meaning": "溫習舊有的知識,進而領悟得到新的體會。", "allusion": "出自《論語》,強調複習與創新並重。"}, {"id": 96, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "學以致用", "zhuyin": "ㄒㄩㄝˊ ㄧˇ ㄓˋ ㄩㄥˋ", "meaning": "將所學的知識實際應用在生活或工作上。", "allusion": "形容學習不只為考試,更要能實踐。"}, {"id": 97, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "博古通今", "zhuyin": "ㄅㄛˊ ㄍㄨˇ ㄊㄨㄥ ㄐㄧㄣ", "meaning": "形容知識淵博,通曉古今各種事物。", "allusion": "形容一個人學問廣泛,見識豐富。"}, {"id": 98, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "見多識廣", "zhuyin": "ㄐㄧㄢˋ ㄉㄨㄛ ㄕˊ ㄍㄨㄤˇ", "meaning": "見識廣博,經歷豐富。", "allusion": "形容一個人閱歷豐富,知識面廣。"}, {"id": 99, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "學富五車", "zhuyin": "ㄒㄩㄝˊ ㄈㄨˋ ㄨˇ ㄔㄜ", "meaning": "形容讀書極多,學問淵博。", "allusion": "出自《莊子》,形容惠施藏書多達五車。"}, {"id": 100, "stationNo": 5, "station": "智慧終點站", "level": "★★★", "idiom": "才高八斗", "zhuyin": "ㄘㄞˊ ㄍㄠ ㄅㄚ ㄉㄡˇ", "meaning": "形容人極有才華。", "allusion": "謝靈運稱讚曹植才華,天下才共一石,曹植獨占八斗。"}]
+</script>
+
+<script>
+/* ============================================================
+   字宙探索號・成語星際任務
+   ============================================================ */
+
+/* ---------- starfield background ---------- */
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let w,h,stars;
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    const count = Math.floor((w*h)/9000);
+    stars = Array.from({length:count}, ()=>({
+      x:Math.random()*w, y:Math.random()*h,
+      r:Math.random()*1.3+0.2,
+      tw:Math.random()*Math.PI*2,
+      speed:Math.random()*0.015+0.004
+    }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,w,h);
+    for(const s of stars){
+      const alpha = 0.35 + 0.65*Math.abs(Math.sin(s.tw + t*s.speed));
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(242,238,220,${alpha.toFixed(2)})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+/* ---------- mentor portrait svg ---------- */
+function mentorSVG(size){
+  return `<svg viewBox="0 0 120 120" width="${size}" height="${size}">
+    <circle cx="60" cy="60" r="52" fill="url(#g1)" stroke="#C9A227" stroke-width="1.2"/>
+    <defs>
+      <radialGradient id="g1" cx="35%" cy="30%">
+        <stop offset="0%" stop-color="#2A3568"/>
+        <stop offset="100%" stop-color="#10152C"/>
+      </radialGradient>
+    </defs>
+    <path d="M28 46 Q60 30 92 46" stroke="#C9A227" stroke-width="2" fill="none" opacity="0.8"/>
+    <circle cx="44" cy="58" r="4" fill="#EACD6B"><animate attributeName="opacity" values="1;0.3;1" dur="2.6s" repeatCount="indefinite"/></circle>
+    <circle cx="76" cy="58" r="4" fill="#EACD6B"><animate attributeName="opacity" values="1;0.3;1" dur="2.6s" repeatCount="indefinite" begin="0.4s"/></circle>
+    <path d="M40 82 Q60 94 80 82" stroke="#8B7FD1" stroke-width="2" fill="none" opacity="0.7"/>
+    <path d="M60 8 L60 20 M14 60 L26 60 M94 60 L106 60" stroke="#C9A227" stroke-width="1" opacity="0.5"/>
+    <circle cx="60" cy="8" r="2" fill="#EACD6B"/>
+  </svg>`;
+}
+
+/* ---------- data ---------- */
+const STATIONS = [
+  {key:'啟航星', title:'啟航星', system:'動力核心', sub:'Propulsion Core', color:'#C9A227', angle:-90},
+  {key:'毅力星雲', title:'毅力星雲', system:'續航能源艙', sub:'Endurance Bay', color:'#3FA796', angle:-18},
+  {key:'團隊小行星帶', title:'團隊小行星帶', system:'通訊聯絡塔', sub:'Comm Array', color:'#CE7B45', angle:54},
+  {key:'冒險黑洞', title:'冒險黑洞', system:'護盾防禦系統', sub:'Shield Defense', color:'#C1443D', angle:126},
+  {key:'智慧終點站', title:'智慧終點站', system:'導航智慧核心', sub:'Navigation AI', color:'#8B7FD1', angle:198},
+];
+const STATION_MAP = Object.fromEntries(STATIONS.map(s=>[s.key,s]));
+
+const DEFAULT_BANK = JSON.parse(document.getElementById('default-bank-data').textContent);
+let BANK = JSON.parse(JSON.stringify(DEFAULT_BANK));
+
+const STORY_SLIDES = [
+  {speaker:'', text:'西元2049年,人類將五千年淬煉而成的文字智慧,封存於「字宙」——一片以成語為星辰、以典籍為星圖的深空之域。'},
+  {speaker:'', text:'見習領航員,你剛登上探索艦「字宙號」,準備執行第一趟星際任務:巡航古典星域,記錄失落的成語星辰。'},
+  {speaker:'文伯', text:'歡迎登艦!我是文伯,字宙號的領航 AI,由三千年典籍訓練而成。往後的旅程,就由我陪你一起——'},
+  {speaker:'文伯', text:'警報!前方偵測到不明的「離散風暴」!它會震碎船上的成語核心晶片,把千年智慧震散到未知星域啊——'},
+  {speaker:'文伯', text:'糟了……風暴過境,五大核心系統的成語晶片全數震落,分別墜入五個星域了。沒有它們,字宙號寸步難行。'},
+  {speaker:'文伯', text:'別擔心,晶片墜落之處都留有微光殘跡。只要重新拼組正確的成語,晶片就會發光歸位,系統就能修復一分。'},
+  {speaker:'文伯', text:'見習領航員,接下來就靠你了。啟航星、毅力星雲、團隊小行星帶、冒險黑洞、智慧終點站——五大星域正等著你。願典籍之光,指引我們平安返航。'},
+];
+
+const BRIEFINGS = {
+  '啟航星':'這裡是啟航星,離字宙號最近的星域。晶片碎片不多,是最適合練手感的地方——動力核心就靠你了。',
+  '毅力星雲':'毅力星雲裡飄著許多古人苦讀的殘影。把晶片拼好,續航能源艙就能重新運轉,支撐我們走更遠的路。',
+  '團隊小行星帶':'小行星帶裡的晶片彼此牽引,就像成語裡說的「同心協力」。通訊聯絡塔修復後,我們才能呼叫遠方的救援。',
+  '冒險黑洞':'前方是冒險黑洞,晶片碎片摻雜著更多干擾雜訊,難度較高。護盾防禦系統修好之前,千萬別掉以輕心。',
+  '智慧終點站':'這是最深邃的星域,晶片的訊號最微弱,考驗你的智慧。導航智慧核心一旦修復,字宙號就能算出返航的航線了。',
+};
+
+const STATION_DONE_LINES = {
+  '啟航星':'太好了!動力核心重新啟動,字宙號的引擎又亮了起來。',
+  '毅力星雲':'續航能源艙修復完成,航行距離大幅提升,繼續前進吧!',
+  '團隊小行星帶':'通訊聯絡塔恢復訊號,我們與文明星域重新建立了聯繫。',
+  '冒險黑洞':'護盾防禦系統修復!就算再遇到風暴,字宙號也不怕了。',
+  '智慧終點站':'導航智慧核心完全甦醒——見習領航員,我們已經能算出回家的路了!',
+};
+
+/* ---------- persistent storage ---------- */
+const STORAGE_KEYS = {progress:'chengyu_progress', bank:'chengyu_custom_bank', seenStory:'chengyu_seen_story'};
+async function saveData(key, value){
+  try{
+    if(window.storage){ await window.storage.set(key, JSON.stringify(value)); }
+  }catch(e){ console.warn('storage set failed', e); }
+}
+async function loadData(key){
+  try{
+    if(!window.storage) return null;
+    const r = await window.storage.get(key);
+    return r ? JSON.parse(r.value) : null;
+  }catch(e){ return null; }
+}
+
+/* progress = { [idiomId]: {solved:true, bestScore:100} } , plus totalScore */
+let progress = {};
+let totalScore = 0;
+
+async function initState(){
+  const savedProgress = await loadData(STORAGE_KEYS.progress);
+  if(savedProgress){ progress = savedProgress.progress || {}; totalScore = savedProgress.totalScore || 0; }
+  const savedBank = await loadData(STORAGE_KEYS.bank);
+  if(savedBank && Array.isArray(savedBank) && savedBank.length){ BANK = savedBank; }
+  const seenStory = await loadData(STORAGE_KEYS.seenStory);
+  window.__seenStory = !!seenStory;
+}
+async function persistProgress(){
+  await saveData(STORAGE_KEYS.progress, {progress, totalScore});
+}
+
+/* ---------- screen management ---------- */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ---------- BOOT ---------- */
+document.getElementById('btn-boot-start').addEventListener('click', async ()=>{
+  await initState();
+  if(window.__seenStory){
+    enterHub();
+  } else {
+    startStory();
+  }
+});
+
+/* ---------- STORY ---------- */
+let storyIndex = 0;
+function startStory(){
+  storyIndex = 0;
+  renderStory();
+  showScreen('screen-story');
+}
+function renderStory(){
+  const slide = STORY_SLIDES[storyIndex];
+  const portrait = document.getElementById('mentor-portrait');
+  const namecard = document.getElementById('story-namecard');
+  const textbox = document.getElementById('story-textbox');
+  if(slide.speaker){
+    portrait.style.display = 'block';
+    portrait.innerHTML = mentorSVG(118);
+    namecard.textContent = slide.speaker;
+  } else {
+    portrait.style.display = 'none';
+    namecard.textContent = '';
+  }
+  textbox.style.animation = 'none';
+  void textbox.offsetWidth;
+  textbox.style.animation = 'fadeSlideIn .45s ease';
+  textbox.textContent = slide.text;
+
+  const dotsWrap = document.getElementById('story-progress');
+  dotsWrap.innerHTML = STORY_SLIDES.map((_,i)=>`<div class="story-dot ${i<=storyIndex?'done':''}"></div>`).join('');
+
+  document.getElementById('btn-story-prev').disabled = storyIndex===0;
+  document.getElementById('btn-story-next').textContent = storyIndex === STORY_SLIDES.length-1 ? '出發任務 ▸' : '下一段 ▸';
+}
+document.getElementById('btn-story-next').addEventListener('click', async ()=>{
+  if(storyIndex < STORY_SLIDES.length-1){ storyIndex++; renderStory(); }
+  else { await saveData(STORAGE_KEYS.seenStory, true); window.__seenStory = true; enterHub(); }
+});
+document.getElementById('btn-story-prev').addEventListener('click', ()=>{
+  if(storyIndex>0){ storyIndex--; renderStory(); }
+});
+document.getElementById('btn-story-skip').addEventListener('click', async ()=>{
+  await saveData(STORAGE_KEYS.seenStory, true); window.__seenStory = true; enterHub();
+});
+document.getElementById('btn-replay-story').addEventListener('click', startStory);
+
+/* ---------- HUB ---------- */
+function stationStats(stationKey){
+  const items = BANK.filter(b=>b.station===stationKey);
+  const solved = items.filter(b=>progress[b.id] && progress[b.id].solved).length;
+  return {total: items.length, solved, pct: items.length? Math.round(solved/items.length*100) : 0};
+}
+function overallPct(){
+  const total = BANK.length;
+  const solved = BANK.filter(b=>progress[b.id] && progress[b.id].solved).length;
+  return total? Math.round(solved/total*100) : 0;
+}
+function ringSVG(pct, color, r){
+  const c = 2*Math.PI*r;
+  const off = c * (1-pct/100);
+  return `<svg viewBox="0 0 ${2*(r+6)} ${2*(r+6)}">
+    <circle cx="${r+6}" cy="${r+6}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="4"/>
+    <circle cx="${r+6}" cy="${r+6}" r="${r}" fill="none" stroke="${color}" stroke-width="4"
+      stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round"
+      transform="rotate(-90 ${r+6} ${r+6})"/>
+  </svg>`;
+}
+function renderHub(){
+  document.getElementById('hub-repair-pct').textContent = overallPct()+'%';
+  document.getElementById('hub-score').textContent = totalScore;
+  document.getElementById('core-pct').textContent = overallPct()+'%';
+
+  const wrap = document.getElementById('orbit-wrap');
+  wrap.querySelectorAll('.station-node').forEach(n=>n.remove());
+  const svg = document.getElementById('orbit-svg');
+  svg.innerHTML = `
+    <circle cx="320" cy="320" r="255" fill="none" stroke="rgba(201,162,39,.18)" stroke-width="1"/>
+    <circle cx="320" cy="320" r="255" fill="none" stroke="rgba(201,162,39,.28)" stroke-width="1" stroke-dasharray="1 10"/>
+  `;
+  STATIONS.forEach(st=>{
+    const rad = st.angle * Math.PI/180;
+    const R = 39; // percent of container radius
+    const cx = 50 + R*Math.cos(rad);
+    const cy = 50 + R*Math.sin(rad);
+    const stats = stationStats(st.key);
+    const node = document.createElement('button');
+    node.className='station-node';
+    node.style.left = cx+'%';
+    node.style.top = cy+'%';
+    node.style.color = st.color;
+    node.innerHTML = `
+      <div class="node-ring">
+        ${ringSVG(stats.pct, st.color, 44)}
+        <div class="node-core" style="border-color:${st.color}66;">${st.title}</div>
+      </div>
+      <div class="node-level">${BANK.find(b=>b.station===st.key)?BANK.find(b=>b.station===st.key).level:'★'}</div>
+      <div class="node-label">${st.system} · ${stats.pct}%</div>
+    `;
+    node.addEventListener('click', ()=>openBriefing(st.key));
+    wrap.appendChild(node);
+  });
+}
+function enterHub(){
+  renderHub();
+  showScreen('screen-hub');
+}
+document.getElementById('btn-open-import').addEventListener('click', openImportModal);
+
+/* ---------- BRIEFING ---------- */
+let activeStation = null;
+function openBriefing(stationKey){
+  activeStation = stationKey;
+  document.getElementById('brief-portrait').innerHTML = mentorSVG(110);
+  document.getElementById('brief-text').textContent = BRIEFINGS[stationKey] || '準備好了嗎?降落星域,開始尋找散落的成語晶片吧。';
+  showScreen('screen-brief');
+}
+document.getElementById('btn-brief-back').addEventListener('click', enterHub);
+document.getElementById('btn-brief-start').addEventListener('click', ()=> startPuzzleSession(activeStation));
+
+/* ---------- PUZZLE SESSION ---------- */
+let session = {station:null, queue:[], index:0, sessionScore:0, current:null, slots:[], pool:[], locked:[], wrongCount:0, hintUsed:false};
+
+function shuffleArr(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+const DISTRACTOR_POOL = (function(){
+  const set = new Set();
+  DEFAULT_BANK.forEach(b=> b.idiom.split('').forEach(ch=>set.add(ch)) );
+  return Array.from(set);
+})();
+
+function startPuzzleSession(stationKey){
+  const items = BANK.filter(b=>b.station===stationKey);
+  const unsolved = items.filter(b=>!(progress[b.id] && progress[b.id].solved));
+  const pool = unsolved.length ? unsolved : items;
+  const SESSION_LEN = Math.min(8, pool.length);
+  session = {
+    station: stationKey,
+    queue: shuffleArr(pool).slice(0,SESSION_LEN),
+    index: 0,
+    sessionScore: 0,
+  };
+  showScreen('screen-puzzle');
+  loadPuzzleQuestion();
+}
+
+function distractorsFor(idiom, count){
+  const own = new Set(idiom.split(''));
+  const candidates = DISTRACTOR_POOL.filter(ch=>!own.has(ch));
+  return shuffleArr(candidates).slice(0,count);
+}
+
+function loadPuzzleQuestion(){
+  if(session.index >= session.queue.length){ return finishStationSession(); }
+  const q = session.queue[session.index];
+  session.current = q;
+  session.wrongCount = 0;
+  session.hintUsed = false;
+
+  const chars = q.idiom.split('');
+  let distractorCount = 0;
+  if(q.level === '★★') distractorCount = 2;
+  else if(q.level === '★★★') distractorCount = 4;
+  const distractors = distractorsFor(q.idiom, distractorCount);
+  const tileChars = shuffleArr(chars.concat(distractors));
+
+  session.slots = chars.map(()=>null); // filled char per slot index, or null
+  session.locked = chars.map(()=>false);
+  session.pool = tileChars.map((ch,i)=>({id:'t'+i, ch, used:false}));
+
+  document.getElementById('puzzle-station-name').textContent = STATION_MAP[q.station].system + '・' + q.station;
+  document.getElementById('puzzle-progress-text').textContent = `${session.index+1} / ${session.queue.length}`;
+  document.getElementById('puzzle-progressbar-fill').style.width = (session.index/session.queue.length*100)+'%';
+  document.getElementById('puzzle-session-score').textContent = '本站積分 '+session.sessionScore;
+  document.getElementById('puzzle-meaning').textContent = q.meaning || '請將下方零件拼回正確順序,修復這片成語晶片。';
+  document.getElementById('puzzle-zhuyin-hint').textContent = '';
+  document.getElementById('puzzle-feedback').textContent = '';
+  document.getElementById('puzzle-feedback').className = 'puzzle-feedback';
+  document.getElementById('btn-puzzle-hint').disabled = false;
+
+  renderSlots();
+  renderTiles();
+}
+
+function renderSlots(){
+  const wrap = document.getElementById('puzzle-slots');
+  wrap.innerHTML = '';
+  session.slots.forEach((ch,i)=>{
+    const el = document.createElement('div');
+    el.className = 'slot' + (ch?' filled':'') + (session.locked[i]?' locked':'');
+    el.dataset.index = i+1;
+    el.textContent = ch || '';
+    el.addEventListener('click', ()=>onSlotClick(i));
+    wrap.appendChild(el);
+  });
+}
+function renderTiles(){
+  const wrap = document.getElementById('puzzle-tiles');
+  wrap.innerHTML = '';
+  session.pool.forEach(t=>{
+    const el = document.createElement('div');
+    el.className = 'tile' + (t.used?' used':'');
+    el.textContent = t.ch;
+    el.addEventListener('click', ()=>onTileClick(t));
+    wrap.appendChild(el);
+  });
+}
+function onTileClick(tile){
+  if(tile.used) return;
+  const emptyIndex = session.slots.findIndex((v,i)=> v===null && !session.locked[i]);
+  if(emptyIndex === -1) return;
+  session.slots[emptyIndex] = tile.ch;
+  tile.used = true;
+  tile.slotIndex = emptyIndex;
+  renderSlots(); renderTiles();
+  if(session.slots.every(v=>v!==null)) checkAnswer();
+}
+function onSlotClick(index){
+  if(session.locked[index]) return;
+  if(session.slots[index] === null) return;
+  const ch = session.slots[index];
+  const tile = session.pool.find(t=> t.used && t.slotIndex===index);
+  if(tile){ tile.used = false; delete tile.slotIndex; }
+  session.slots[index] = null;
+  renderSlots(); renderTiles();
+}
+function checkAnswer(){
+  const answer = session.current.idiom.split('');
+  const attempt = session.slots;
+  const isCorrect = answer.every((ch,i)=>ch===attempt[i]);
+  if(isCorrect){
+    onCorrect();
+  } else {
+    session.wrongCount++;
+    const wrongSlots = document.querySelectorAll('#puzzle-slots .slot');
+    answer.forEach((ch,i)=>{ if(attempt[i]!==ch) wrongSlots[i].classList.add('wrong'); });
+    const fb = document.getElementById('puzzle-feedback');
+    fb.textContent = '順序不太對喔,再試試看!(提示:注意成語的邏輯順序)';
+    fb.className = 'puzzle-feedback';
+    setTimeout(()=>{
+      // clear slots back to pool, keep locked ones
+      session.slots.forEach((v,i)=>{
+        if(!session.locked[i]){
+          session.slots[i] = null;
+        }
+      });
+      session.pool.forEach(t=>{ if(t.used && !session.locked[t.slotIndex]){ t.used=false; delete t.slotIndex; } });
+      renderSlots(); renderTiles();
+    }, 650);
+  }
+}
+document.getElementById('btn-puzzle-hint').addEventListener('click', ()=>{
+  const answer = session.current.idiom.split('');
+  const idx = session.slots.findIndex((v,i)=> v===null || v!==answer[i]);
+  const target = session.slots.findIndex((v,i)=>!session.locked[i]);
+  // find first wrong or empty, unlocked slot
+  let fixIndex = -1;
+  for(let i=0;i<answer.length;i++){
+    if(session.locked[i]) continue;
+    if(session.slots[i] !== answer[i]){ fixIndex = i; break; }
+  }
+  if(fixIndex === -1) return;
+  // free the tile currently occupying (if any) back to pool
+  const occupying = session.pool.find(t=> t.used && t.slotIndex===fixIndex);
+  if(occupying){ occupying.used=false; delete occupying.slotIndex; }
+  // find a pool tile matching the needed char, mark used & locked
+  const needed = answer[fixIndex];
+  const tile = session.pool.find(t=> !t.used && t.ch===needed);
+  session.slots[fixIndex] = needed;
+  session.locked[fixIndex] = true;
+  if(tile){ tile.used = true; tile.slotIndex = fixIndex; }
+  session.hintUsed = true;
+  renderSlots(); renderTiles();
+  document.getElementById('puzzle-zhuyin-hint').textContent = session.current.zhuyin || '';
+  if(session.slots.every(v=>v!==null)) checkAnswer();
+});
+document.getElementById('btn-puzzle-reset').addEventListener('click', ()=>{
+  session.slots.forEach((v,i)=>{ if(!session.locked[i]) session.slots[i]=null; });
+  session.pool.forEach(t=>{ if(t.used && !session.locked[t.slotIndex]){ t.used=false; delete t.slotIndex; } });
+  renderSlots(); renderTiles();
+});
+document.getElementById('btn-puzzle-exit').addEventListener('click', enterHub);
+
+function onCorrect(){
+  let score = 100;
+  score -= session.wrongCount * 15;
+  if(session.hintUsed) score -= 20;
+  score = Math.max(20, score);
+
+  const id = session.current.id;
+  const prevBest = progress[id] ? progress[id].bestScore : 0;
+  progress[id] = {solved:true, bestScore: Math.max(prevBest, score)};
+  totalScore += score;
+  session.sessionScore += score;
+  persistProgress();
+
+  document.getElementById('result-idiom').textContent = session.current.idiom;
+  document.getElementById('result-zhuyin').textContent = session.current.zhuyin || '';
+  document.getElementById('result-meaning').textContent = session.current.meaning || '';
+  document.getElementById('result-allusion').textContent = session.current.allusion || '';
+  document.getElementById('result-score').textContent = '+ '+score+' 分';
+  document.getElementById('result-overlay').classList.add('active');
+}
+document.getElementById('btn-result-continue').addEventListener('click', ()=>{
+  document.getElementById('result-overlay').classList.remove('active');
+  session.index++;
+  loadPuzzleQuestion();
+});
+
+function finishStationSession(){
+  document.getElementById('done-portrait').innerHTML = mentorSVG(110);
+  const stats = stationStats(session.station);
+  const line = stats.pct >= 100
+    ? (STATION_DONE_LINES[session.station] || '這個星域的晶片已經全數修復!')
+    : `這一輪修復了不少晶片!目前 ${session.station} 的核心修復度為 ${stats.pct}%,剩下的下次再來挑戰。`;
+  document.getElementById('done-text').textContent = `本次任務積分 +${session.sessionScore}。` + line;
+  showScreen('screen-station-done');
+}
+document.getElementById('btn-done-continue').addEventListener('click', enterHub);
+
+/* ---------- IMPORT ---------- */
+let parsedImportRows = null;
+function openImportModal(){
+  document.getElementById('import-modal').classList.add('active');
+  resetImportUI();
+}
+function resetImportUI(){
+  parsedImportRows = null;
+  document.getElementById('import-summary').classList.remove('show');
+  document.getElementById('preview-table').classList.remove('show');
+  document.getElementById('preview-table').innerHTML = '';
+  document.getElementById('btn-apply-import').disabled = true;
+  document.getElementById('file-input').value = '';
+}
+document.getElementById('btn-close-import').addEventListener('click', ()=>document.getElementById('import-modal').classList.remove('active'));
+document.getElementById('btn-cancel-import').addEventListener('click', ()=>document.getElementById('import-modal').classList.remove('active'));
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+dropzone.addEventListener('click', ()=>fileInput.click());
+dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e=>{
+  e.preventDefault(); dropzone.classList.remove('dragover');
+  if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e=>{
+  if(e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      processImportRows(rows);
+    }catch(err){
+      toast('讀取失敗,請確認檔案格式是否正確');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+const VALID_STATIONS = STATIONS.map(s=>s.key);
+function normalizeStation(raw){
+  raw = (raw||'').toString().trim();
+  for(const key of VALID_STATIONS){ if(raw.includes(key)) return key; }
+  return null;
+}
+function normalizeLevel(raw){
+  raw = (raw||'').toString().trim();
+  const stars = (raw.match(/★/g)||[]).length;
+  if(stars>=3) return '★★★';
+  if(stars===2) return '★★';
+  if(stars===1) return '★';
+  return '★';
+}
+function processImportRows(rows){
+  let ok=0, skipped=0, reasons=[];
+  const result = [];
+  rows.forEach((r,i)=>{
+    const idiom = (r['成語']||'').toString().trim();
+    const stationRaw = r['星站關卡']||r['星站']||r['星域']||'';
+    const station = normalizeStation(stationRaw);
+    if(!idiom || idiom.length!==4){ skipped++; return; }
+    if(!station){ skipped++; return; }
+    const level = normalizeLevel(r['難度']);
+    result.push({
+      id: 'custom_'+i+'_'+idiom,
+      station, level, idiom,
+      zhuyin: (r['注音']||'').toString().trim(),
+      meaning: (r['意思']||'').toString().trim(),
+      allusion: (r['典故/由來']||r['典故']||r['由來']||'').toString().trim(),
+    });
+    ok++;
+  });
+  parsedImportRows = result;
+
+  const summary = document.getElementById('import-summary');
+  summary.classList.add('show');
+  summary.innerHTML = `共讀取 <b>${rows.length}</b> 筆資料,成功解析 <b>${ok}</b> 筆${skipped? `,略過 <b>${skipped}</b> 筆(成語非四字,或星站關卡欄位無法辨識)` : ''}。`;
+
+  const table = document.getElementById('preview-table');
+  if(result.length){
+    table.classList.add('show');
+    table.innerHTML = `<tr><th>星站</th><th>難度</th><th>成語</th><th>意思</th></tr>` +
+      result.slice(0,6).map(r=>`<tr><td>${r.station}</td><td>${r.level}</td><td>${r.idiom}</td><td>${(r.meaning||'—').slice(0,20)}</td></tr>`).join('') +
+      (result.length>6 ? `<tr><td colspan="4" style="text-align:center;color:var(--ink-faint);">...共 ${result.length} 筆</td></tr>` : '');
+  } else {
+    table.classList.remove('show');
+  }
+  document.getElementById('btn-apply-import').disabled = result.length===0;
+}
+
+document.getElementById('btn-apply-import').addEventListener('click', async ()=>{
+  if(!parsedImportRows || !parsedImportRows.length) return;
+  const coveredStations = new Set(parsedImportRows.map(r=>r.station));
+  const kept = DEFAULT_BANK.filter(b=>!coveredStations.has(b.station));
+  BANK = kept.concat(parsedImportRows);
+  await saveData(STORAGE_KEYS.bank, BANK);
+  document.getElementById('import-modal').classList.remove('active');
+  toast(`已套用自訂題庫,共 ${BANK.length} 題`);
+  renderHub();
+});
+document.getElementById('btn-reset-bank').addEventListener('click', async ()=>{
+  BANK = JSON.parse(JSON.stringify(DEFAULT_BANK));
+  await saveData(STORAGE_KEYS.bank, null);
+  toast('已恢復內建100題題庫');
+  document.getElementById('import-modal').classList.remove('active');
+  renderHub();
+});
+
+</script>
+</body>
+</html>
